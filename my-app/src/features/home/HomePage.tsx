@@ -16,7 +16,6 @@ interface Post {
   title: string;
   content: ContentBlock[] | string; // Can be an array of blocks or a simple string for older posts
   category: string;
-  slug: string; // Add slug for linking
 }
 
 // Function to get a preview of the post content
@@ -40,7 +39,7 @@ const PostCard = ({ post }: { post: Post }) => (
     <h2 className="text-2xl font-bold mb-2">{post.title}</h2>
     <p className="text-gray-300 mb-4">{getPostSnippet(post.content)}</p>
     <p className="text-gray-400 text-sm mb-4">Category: {post.category}</p>
-    <Link href={`/${post.category}/${post.slug}`} className="text-blue-500 hover:underline">
+    <Link href={`/${post.category}/${post.id}`} className="text-blue-500 hover:underline">
       Read More
     </Link>
   </div>

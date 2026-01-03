@@ -3,7 +3,19 @@
 import React from 'react';
 import Link from 'next/link';
 
-const navLinks = [
+// Define the types for the navigation links
+interface SubLink {
+  name: string;
+  path: string;
+}
+
+interface NavLink {
+  name: string;
+  path: string;
+  subLinks?: SubLink[];
+}
+
+const navLinks: NavLink[] = [
   { name: 'Home', path: '/' },
   { name: 'Blogs', path: '/blogs' },
   { name: 'News', path: '/news' },

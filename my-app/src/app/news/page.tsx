@@ -40,7 +40,7 @@ const PostCard = ({ post }: { post: Post }) => (
     <h2 className="text-2xl font-bold mb-2">{post.title}</h2>
     <p className="text-gray-300 mb-4">{getPostSnippet(post.content)}</p>
     <p className="text-gray-400 text-sm mb-4">Category: {post.category}</p>
-    <Link href={`/${post.category}/${post.slug}`} className="text-blue-500 hover:underline">
+    <Link href={`/${post.category}/${post.id}`} className="text-blue-500 hover:underline">
       Read More
     </Link>
   </div>
@@ -56,7 +56,6 @@ export default function News() {
       const newsSnapshot = await getDocs(newsQuery);
       const newsData = newsSnapshot.docs.map((doc) => ({
         id: doc.id,
-        slug: doc.data().slug,
         ...doc.data(),
       })) as Post[];
       setNewsPosts(newsData);

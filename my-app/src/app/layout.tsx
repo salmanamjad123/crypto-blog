@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/common/Header";
-import { Navigation } from "@/components/common/Navigation";
+// import { Navigation } from "@/components/common/Navigation";
 import { getCryptoRates } from "@/lib/crypto"; // Import the data fetching function
 
 const inter = Inter({ subsets: ["latin"] });
@@ -19,7 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className={inter.className}>
         <Header initialData={initialCryptoData} /> {/* Pass data to the header */}
-        <Navigation />
+        {/* <Navigation /> */}
         <main className="container mx-auto p-4">
           {children}
         </main>

@@ -44,6 +44,7 @@ export async function getCryptoRates(): Promise<CoinRate[]> {
     }
 
     const formattedData: CoinRate[] = Object.keys(data).map(coinId => ({
+        id: coinId,
         symbol: coinIdMap[coinId],
         price: data[coinId].usd,
         change: data[coinId].usd_24h_change,

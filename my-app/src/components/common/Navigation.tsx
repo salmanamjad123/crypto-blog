@@ -19,6 +19,7 @@ const navLinks: NavLink[] = [
   { name: 'Home', path: '/' },
   { name: 'Blogs', path: '/blogs' },
   { name: 'News', path: '/news' },
+  { name: 'Prediction', path: '/prediction' },
 ];
 
 export const Navigation = () => {

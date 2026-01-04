@@ -2,26 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/utils/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-// Let TypeScript infer the types for the request and context
-export async function GET(req: NextRequest, { params }: { params: { category: string, slug: string } }) {
+// Force this route to be treated as fully dynamic
+export const dynamic = 'force-dynamic';
+
+// Adapt the function signature to handle params as a Promise
+// This is a workaround for an unusual build environment behavior
+export async function GET(
+  req: NextRequest,
+  // The context.params object is expected as a Promise here
+  context: { params: Promise<{ category: string, slug: string }> }
+) {
   try {
+    // Await the params promise to resolve the values
+    const params = await context.params;
     const { category, slug } = params;
 
-    // Add a guard clause to ensure params are present
     if (!category || !slug) {
-      return new NextResponse(JSON.stringify({ message: 'Missing category or slug' }), { status: 400 });
+      return NextResponse.json({ message: 'Missing category or slug' }, { status: 400 });
     }
 
     const docRef = doc(db, 'posts', category, 'articles', slug);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
-      return new NextResponse(JSON.stringify({ message: 'Post not found' }), { status: 404 });
+      return NextResponse.json({ message: 'Post not found' }, { status: 404 });
     }
 
-    return new NextResponse(JSON.stringify(docSnap.data()), { status: 200 });
+    return NextResponse.json(docSnap.data());
   } catch (error) {
     console.error("Error fetching post:", error);
-    return new NextResponse(JSON.stringify({ message: 'Error fetching post' }), { status: 500 });
+    return NextResponse.json({ message: 'Error fetching post' }, { status: 500 });
   }
 }

@@ -5,9 +5,9 @@ import React from 'react';
 // Placeholder data for news articles
 const allNews = [
   { id: 1, category: 'Bitcoin', title: 'Bitcoin Surges Past $70,000 Amidst Market Frenzy', excerpt: 'Institutional buying and positive market sentiment have pushed Bitcoin to a new all-time high.' },
-  { id: 2, category: 'Ethereum', title: 'Ethereum Devs Announce Details for 'Prague' Upgrade', excerpt: 'The next major upgrade for Ethereum will focus on scalability and security enhancements.' },
+  { id: 2, category: 'Ethereum', title: "Ethereum Devs Announce Details for 'Prague' Upgrade", excerpt: 'The next major upgrade for Ethereum will focus on scalability and security enhancements.' },
   { id: 3, category: 'DeFi', title: 'Total Value Locked in DeFi Reaches a New Milestone', excerpt: 'Over $100 billion is now locked in decentralized finance protocols, signaling massive growth.' },
-  { id: 4, category: 'Regulation', title: 'SEC Chairman Comments on Cryptocurrency Regulation', excerpt: 'Gary Gensler outlined the SEC\'s stance on digital assets in a recent public address.' },
+  { id: 4, category: 'Regulation', title: "SEC Chairman Comments on Cryptocurrency Regulation", excerpt: "Gary Gensler outlined the SEC's stance on digital assets in a recent public address." },
   { id: 5, category: 'NFTs', title: 'NFT Marketplace Sees Record Trading Volume', excerpt: 'The market for non-fungible tokens continues to heat up with record sales this month.' },
   { id: 6, category: 'Altcoins', title: 'Solana Ecosystem Expands with New dApps', excerpt: 'A new wave of decentralized applications is launching on the Solana blockchain.' },
 ];

@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { NextResponse } from "next/server";
 
@@ -9,14 +10,14 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
-// --- Coin ID to Binance Symbol Mapping ---
-const coinIdToBinanceSymbol: { [key: string]: string } = {
-  bitcoin: "BTCUSDT",
-  ethereum: "ETHUSDT",
-  solana: "SOLUSDT",
-  binancecoin: "BNBUSDT",
-  ripple: "XRPUSDT",
-  dogecoin: "DOGEUSDT",
+// --- Coin ID to CoinGecko ID Mapping ---
+const coinIdToCoinGeckoId: { [key: string]: string } = {
+  bitcoin: "bitcoin",
+  ethereum: "ethereum",
+  solana: "solana",
+  binancecoin: "binancecoin",
+  ripple: "ripple",
+  dogecoin: "dogecoin",
 };
 
 // --- RSI Calculation (no changes) ---
@@ -43,15 +44,15 @@ const calculateRSI = (prices: number[], period = 14) => {
     return 100 - (100 / (1 + rs));
   };
 
-// --- API Handler using Binance (HOURLY data) ---
+// --- API Handler using CoinGecko API (DAILY data) ---
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const coinId = searchParams.get("coinId");
 
   if (!coinId) return NextResponse.json({ error: "Coin ID is required" }, { status: 400 });
 
-  const binanceSymbol = coinIdToBinanceSymbol[coinId];
-  if (!binanceSymbol) return NextResponse.json({ error: `Invalid coin ID: ${coinId}` }, { status: 400 });
+  const coingeckoId = coinIdToCoinGeckoId[coinId];
+  if (!coingeckoId) return NextResponse.json({ error: `Invalid coin ID: ${coinId}` }, { status: 400 });
 
   // 1. Check cache
   const cachedEntry = cache.get(coinId);
@@ -60,29 +61,28 @@ export async function GET(request: Request) {
     return NextResponse.json(cachedEntry.data);
   }
 
-  console.log(`[Cache MISS] for ${coinId}. Fetching from Binance API.`);
+  console.log(`[Cache MISS] for ${coinId}. Fetching from CoinGecko API.`);
 
   try {
-    // 2. Fetch HOURLY data from Binance for more accurate, real-time RSI
-    const response = await axios.get("https://api.binance.com/api/v3/klines", {
+    // 2. Fetch DAILY data from CoinGecko
+    const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coingeckoId}/ohlc`, {
       params: {
-        symbol: binanceSymbol,
-        interval: "1h", // <-- Fetch hourly data
-        limit: 720,    // <-- Fetch last 30 days (30*24=720 hours)
+        vs_currency: "usd",
+        days: "90", // Fetch last 90 days for RSI calculation
       },
     });
 
-    const klines = response.data;
-    if (!Array.isArray(klines) || klines.length === 0) throw new Error("No data from Binance");
+    const ohlc = response.data;
+    if (!Array.isArray(ohlc) || ohlc.length === 0) throw new Error("No data from CoinGecko");
 
     // 3. Process data
-    const closingPrices = klines.map((k: any) => parseFloat(k[4]));
+    const closingPrices = ohlc.map((k: any) => k[4]); // Closing price is the 5th element
     const rsi = calculateRSI(closingPrices);
 
-    // Format candlestick data for the chart (show last 7 days of hourly data)
-    const candleData = klines.slice(-168).map((k: any) => ({ // <-- 7 days * 24 hours
+    // Format candlestick data for the chart (show last 30 days)
+    const candleData = ohlc.slice(-30).map((k: any) => ({
       x: new Date(k[0]),
-      y: [parseFloat(k[1]), parseFloat(k[2]), parseFloat(k[3]), parseFloat(k[4])],
+      y: [k[1], k[2], k[3], k[4]],
     }));
 
     const responseData = { rsi: { value: rsi }, candles: candleData };
@@ -93,9 +93,9 @@ export async function GET(request: Request) {
     return NextResponse.json(responseData);
 
   } catch (e: any) {
-    console.error(`Error fetching from Binance: ${e.message}`, { errorBody: e.response?.data });
-    const errorMsg = e.response?.data?.msg || "An internal server error occurred.";
+    console.error(`Error fetching from CoinGecko: ${e.message}`, { errorBody: e.response?.data });
+    const errorMsg = e.response?.data?.error || "An internal server error occurred.";
     const errorStatus = e.response?.status || 500;
-    return NextResponse.json({ error: `Error from Binance: ${errorMsg}` }, { status: errorStatus });
+    return NextResponse.json({ error: `Error from CoinGecko: ${errorMsg}` }, { status: errorStatus });
   }
 }

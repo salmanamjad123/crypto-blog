@@ -23,7 +23,7 @@ const PREDICTION_COINS: Coin[] = [
 export default function PredictionPage() {
   const [selectedCoinId, setSelectedCoinId] = useState<string>(PREDICTION_COINS[0].id);
   const [predictionDirection, setPredictionDirection] = useState<PredictionDirection | null>(null);
-  const [riskPrediction, setRiskPrediction] = useState<PredictionDirection | null>(null);
+  const [trend, setTrend] = useState<PredictionDirection | null>(null);
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
   const [predictionError, setPredictionError] = useState<string | null>(null);
@@ -41,19 +41,24 @@ export default function PredictionPage() {
     return 'Neutral';
   };
 
-  // New function for trend-based risk prediction
-  const calculateRiskPrediction = (candles: any[]): PredictionDirection => {
-      if (candles.length < 24) return 'Neutral'; // Need at least 24 hours of data
-      const startPrice = candles[candles.length - 24].y[3]; // Close price 24h ago
-      const endPrice = candles[candles.length - 1].y[3];   // Current close price
+  const calculate7DayTrend = (candles: any[]): PredictionDirection => {
+      if (candles.length < 7) return 'Neutral'; 
+      const startPrice = candles[candles.length - 7].y[3];
+      const endPrice = candles[candles.length - 1].y[3];
       if (endPrice > startPrice) return 'Up';
       if (endPrice < startPrice) return 'Down';
       return 'Neutral';
   };
 
-  const formatPakistanTime = (date: Date | null): string => {
+  const formatPakistanDateOnly = (date: Date | null): string => {
     if (!date) return "N/A";
-    return new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Karachi', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true, timeZoneName: 'short' }).format(date);
+    // Formats the date according to the Pakistan timezone. e.g., "January 5, 2024"
+    return new Intl.DateTimeFormat('en-US', { 
+        timeZone: 'Asia/Karachi', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    }).format(date);
   };
 
   // --- Data Fetching ---
@@ -69,7 +74,7 @@ export default function PredictionPage() {
         const lastCandle = data.candles[data.candles.length - 1];
         setChartData(data.candles);
         setPredictionDirection(getRsiPrediction(data.rsi.value));
-        setRiskPrediction(calculateRiskPrediction(data.candles)); // <-- Calculate risk prediction
+        setTrend(calculate7DayTrend(data.candles));
         setLastUpdated(new Date(lastCandle.x));
         setLatestPrice(lastCandle.y[3]);
         setRsiValue(data.rsi.value);
@@ -98,7 +103,7 @@ export default function PredictionPage() {
       <div className="max-w-4xl mx-auto mt-8 bg-gray-800 rounded-xl shadow-2xl p-6 border border-gray-700">
         <h2 className="text-2xl font-bold text-cyan-400 mb-4">RSI-Based Prediction for {selectedCoin?.name}</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Last Updated (PKT)</p><p className="text-lg font-semibold text-white">{formatPakistanTime(lastUpdated)}</p></div>
+          <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Date of Latest Data (PKT)</p><p className="text-lg font-semibold text-white">{formatPakistanDateOnly(lastUpdated)}</p></div>
           <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Latest Price (USD)</p><p className="text-lg font-semibold text-white">${latestPrice.toLocaleString()}</p></div>
           <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Immediate Outlook</p><p className={`text-xl font-bold ${predictionDirection === 'Up' ? 'text-green-500' : predictionDirection === 'Down' ? 'text-red-500' : 'text-gray-500'}`}>{predictionDirection}</p></div>
         </div>
@@ -107,17 +112,17 @@ export default function PredictionPage() {
     );
   };
 
-  const RiskAnalysisCard = () => {
-      if (loading || !riskPrediction) return null;
-      let analysisText = "The price has been stable over the last 24 hours.";
-      if (riskPrediction === 'Up') analysisText = "The price has been on an upward trend over the last 24 hours, suggesting bullish momentum.";
-      if (riskPrediction === 'Down') analysisText = "The price has been on a downward trend over the last 24 hours, suggesting bearish momentum.";
+  const TrendAnalysisCard = () => {
+      if (loading || !trend) return null;
+      let analysisText = "The price has been relatively stable over the last week.";
+      if (trend === 'Up') analysisText = "The price has been on an upward trend over the last 7 days, suggesting bullish momentum.";
+      if (trend === 'Down') analysisText = "The price has been on a downward trend over the last 7 days, suggesting bearish momentum.";
       return (
         <div className="max-w-4xl mx-auto mt-8 bg-gray-800 rounded-xl shadow-2xl p-6 border border-gray-700">
-          <h2 className="text-2xl font-bold text-orange-400 mb-4">24-Hour Risk Analysis</h2>
+          <h2 className="text-2xl font-bold text-orange-400 mb-4">7-Day Trend Analysis</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
-            <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Tomorrow's Risky Prediction</p><p className={`text-xl font-bold ${riskPrediction === 'Up' ? 'text-green-500' : riskPrediction === 'Down' ? 'text-red-500' : 'text-gray-500'}`}>{riskPrediction}</p></div>
-            <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Basis</p><p className="text-lg font-semibold text-white">24-Hour Price Trend</p></div>
+            <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Short-Term Trend</p><p className={`text-xl font-bold ${trend === 'Up' ? 'text-green-500' : trend === 'Down' ? 'text-red-500' : 'text-gray-500'}`}>{trend}</p></div>
+            <div className="p-4 bg-gray-900 rounded-lg"><p className="text-sm text-gray-400">Basis</p><p className="text-lg font-semibold text-white">7-Day Price Movement</p></div>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-700"><p className="text-sm text-gray-400">Summary</p><p className="italic text-gray-400">{analysisText}</p></div>
         </div>
@@ -137,8 +142,10 @@ export default function PredictionPage() {
       </div>
       {predictionError && <div className="max-w-4xl mx-auto text-center text-red-400 bg-red-900 bg-opacity-50 rounded-lg p-4">{predictionError}</div>}
       <PredictionAnalysisCard />
-      <RiskAnalysisCard /> 
-      <div className="mt-8 max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-lg p-4">
+      <TrendAnalysisCard /> 
+      <div className="mt-8 max-w-4xl mx-auto bg-gray-800 rounded-lg shadow-lg p-6">
+        <h3 className="text-xl font-semibold text-center text-gray-300 mb-2">Daily Candlestick Chart (Last 30 Days)</h3>
+        <p className="text-xs text-center text-gray-500 mb-4">Each candle represents a full day of trading (UTC). The chart shows data for the last completed trading day, which may be 1-2 days behind the current date.</p>
         {loading ? <div className="flex items-center justify-center h-96 text-gray-500"><p>Loading chart...</p></div> : chartData.length > 0 ? <CandleStickChart data={chartData} prediction={predictionDirection} /> : !predictionError && <div className="flex items-center justify-center h-96 text-gray-500"><p>No chart data available.</p></div>}
       </div>
     </div>

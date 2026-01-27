@@ -1,15 +1,32 @@
 import { useState, useEffect } from 'react';
 import { CoinData } from '@/utils/coingecko';
+import { useCryptoContext } from '@/contexts/CryptoContext';
 
 export const useCryptoData = () => {
-  const [coins, setCoins] = useState<CoinData[]>([]);
+  const { 
+    coins: contextCoins, 
+    setCoins: setContextCoins, 
+    lastUpdated: contextLastUpdated,
+    setLastUpdated: setContextLastUpdated,
+    isCached: contextIsCached,
+    setIsCached: setContextIsCached,
+  } = useCryptoContext();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isCached, setIsCached] = useState(false);
 
-  const loadCoins = async () => {
+  const loadCoins = async (forceRefresh = false) => {
     try {
+      // Check if we have fresh data in context (less than 30 seconds old)
+      if (!forceRefresh && contextCoins.length > 0 && contextLastUpdated) {
+        const age = Date.now() - contextLastUpdated.getTime();
+        if (age < 30000) { // 30 seconds
+          console.log('[useCryptoData] Using fresh context data, age:', Math.round(age / 1000), 'seconds');
+          setLoading(false);
+          return;
+        }
+      }
+
       setLoading(true);
       
       // Fetch from our server API (which has caching)
@@ -21,9 +38,10 @@ export const useCryptoData = () => {
 
       const result = await response.json();
       
-      setCoins(result.data);
-      setLastUpdated(new Date(result.cachedAt));
-      setIsCached(result.cached);
+      // Update context (persists across navigation)
+      setContextCoins(result.data);
+      setContextLastUpdated(new Date(result.cachedAt));
+      setContextIsCached(result.cached);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch coins');
@@ -44,11 +62,11 @@ export const useCryptoData = () => {
   }, []);
 
   return {
-    coins,
+    coins: contextCoins,
     loading,
     error,
-    lastUpdated,
-    isCached,
-    refresh: loadCoins,
+    lastUpdated: contextLastUpdated,
+    isCached: contextIsCached,
+    refresh: () => loadCoins(true), // Force refresh
   };
 };

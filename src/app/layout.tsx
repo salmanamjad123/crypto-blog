@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
+import { CryptoProvider } from "@/contexts/CryptoContext";
 // import { Navigation } from "@/components/common/Navigation";
 import { getCryptoRates } from "@/lib/crypto"; // Import the data fetching function
 
@@ -19,12 +20,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body className={`${inter.className} flex flex-col min-h-screen`}>
-        <Header initialData={initialCryptoData} /> {/* Pass data to the header */}
-        {/* <Navigation /> */}
-        <main className="container mx-auto p-4 flex-grow">
-          {children}
-        </main>
-        <Footer />
+        <CryptoProvider>
+          <Header initialData={initialCryptoData} /> {/* Pass data to the header */}
+          {/* <Navigation /> */}
+          <main className="container mx-auto p-4 grow">
+            {children}
+          </main>
+          <Footer />
+        </CryptoProvider>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchCoins, CoinData } from '@/utils/coingecko';
+import { trackApiCall } from '@/utils/apiMonitor';
 
 // Server-side cache
 let cachedCoins: CoinData[] | null = null;
@@ -22,6 +23,7 @@ export async function GET() {
 
     // Fetch fresh data from CoinGecko
     console.log('[API] Fetching fresh coin data from CoinGecko...');
+    trackApiCall('coins'); // Track API usage
     const data = await fetchCoins(1, 250, 'usd');
     
     // Update cache

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchCoinDetails, CoinDetails } from '@/utils/coingecko';
+import { trackApiCall } from '@/utils/apiMonitor';
 
 // Server-side cache for coin details
 const detailsCache = new Map<string, { data: CoinDetails; timestamp: number }>();
@@ -25,13 +26,14 @@ export async function GET(
 
     // Fetch fresh data from CoinGecko
     console.log(`[API] Fetching details for ${coinId}...`);
+    trackApiCall(`details/${coinId}`); // Track API usage
     const data = await fetchCoinDetails(coinId);
 
     // Update cache
     detailsCache.set(coinId, { data, timestamp: now });
 
-    // Clean old cache entries (keep only last 30)
-    if (detailsCache.size > 30) {
+    // Clean old cache entries (keep only last 100)
+    if (detailsCache.size > 100) {
       const oldestKey = Array.from(detailsCache.keys())[0];
       detailsCache.delete(oldestKey);
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchCoinChart, ChartData } from '@/utils/coingecko';
+import { trackApiCall } from '@/utils/apiMonitor';
 
 // Server-side cache for chart data
 const chartCache = new Map<string, { data: ChartData; timestamp: number }>();
@@ -29,13 +30,14 @@ export async function GET(
 
     // Fetch fresh data from CoinGecko
     console.log(`[API] Fetching chart for ${coinId} (${days} days)...`);
+    trackApiCall(`chart/${coinId}`); // Track API usage
     const data = await fetchCoinChart(coinId, days);
 
     // Update cache
     chartCache.set(cacheKey, { data, timestamp: now });
 
-    // Clean old cache entries (keep only last 50)
-    if (chartCache.size > 50) {
+    // Clean old cache entries (keep only last 100)
+    if (chartCache.size > 100) {
       const oldestKey = Array.from(chartCache.keys())[0];
       chartCache.delete(oldestKey);
     }

@@ -346,16 +346,106 @@ export function predictPrice(
   
   const predictedPrice = currentPrice * (1 + predictedChange / 100);
   
-  // Calculate confidence based on indicator agreement
-  const indicatorAgreement = [
-    signals.strength > 60 || signals.strength < 40, // Strong signal
-    Math.abs(rsi - 50) > 20, // Clear RSI signal
-    macd.trend === movingAverages.trend, // MACD and MA agree
-    (bollingerBands.position < 0.3 && signals.strength > 50) || // BB confirms
-    (bollingerBands.position > 0.7 && signals.strength < 50),
-  ].filter(Boolean).length;
+  // Calculate confidence using weighted multi-factor scoring
+  // Base confidence starts at 50%
+  let confidence = 50;
   
-  const confidence = Math.round((indicatorAgreement / 4) * 100);
+  // 1. RSI Contribution (±15%)
+  // RSI extremes are highly reliable indicators
+  if (rsi > 70) {
+    // Overbought: confidence increases with extreme values
+    confidence += 10 + Math.min((rsi - 70) * 0.5, 5);
+  } else if (rsi < 30) {
+    // Oversold: confidence increases with extreme values
+    confidence += 10 + Math.min((30 - rsi) * 0.5, 5);
+  } else if (rsi > 50 && rsi < 70) {
+    // Bullish but not extreme: moderate confidence
+    confidence += 3;
+  } else if (rsi < 50 && rsi > 30) {
+    // Bearish but not extreme: moderate confidence
+    confidence += 3;
+  } else {
+    // Neutral RSI (45-55) reduces confidence
+    confidence -= 5;
+  }
+  
+  // 2. Signal Strength Contribution (±20%)
+  // Strong directional signals increase confidence
+  if (signals.strength > 70) {
+    confidence += 15 + Math.min((signals.strength - 70) * 0.3, 5);
+  } else if (signals.strength > 60) {
+    confidence += 10;
+  } else if (signals.strength < 30) {
+    confidence += 15 + Math.min((30 - signals.strength) * 0.3, 5);
+  } else if (signals.strength < 40) {
+    confidence += 10;
+  } else {
+    // Weak/neutral signals (40-60) reduce confidence
+    confidence -= 10;
+  }
+  
+  // 3. MACD/MA Agreement (±15%)
+  // When trend indicators align, confidence increases
+  if (macd.trend === movingAverages.trend) {
+    confidence += 10;
+    // Bonus for strong momentum alignment
+    if (Math.abs(macd.histogram) > Math.abs(macd.value) * 0.2) {
+      confidence += 5;
+    }
+  } else {
+    // Contradicting trends reduce confidence
+    confidence -= 5;
+  }
+  
+  // 4. Bollinger Bands Confirmation (±15%)
+  // BB extremes that confirm signal direction are highly reliable
+  if ((bollingerBands.position < 0.2 && signals.strength > 60) ||
+      (bollingerBands.position > 0.8 && signals.strength < 40)) {
+    // Strong confirmation: price at extreme and signal agrees
+    confidence += 15;
+  } else if ((bollingerBands.position < 0.3 && signals.strength > 50) ||
+             (bollingerBands.position > 0.7 && signals.strength < 50)) {
+    // Moderate confirmation
+    confidence += 8;
+  } else if ((bollingerBands.position < 0.4 && signals.strength < 40) ||
+             (bollingerBands.position > 0.6 && signals.strength > 60)) {
+    // Contradiction: price and signal don't align
+    confidence -= 8;
+  }
+  
+  // 5. Volume Trend Confirmation (±10%)
+  // Volume should support the price movement
+  const volumeTrend = technicalAnalysis.volumeTrend;
+  if (volumeTrend.trend === 'INCREASING') {
+    if (signals.strength > 60) {
+      // Increasing volume supports bullish signal
+      confidence += 8;
+    } else if (signals.strength < 40) {
+      // Increasing volume during bearish signal (potential reversal warning)
+      confidence += 3;
+    }
+  } else if (volumeTrend.trend === 'DECREASING') {
+    if (signals.strength > 60 || signals.strength < 40) {
+      // Low volume during strong signals reduces confidence
+      confidence -= 5;
+    }
+  }
+  
+  // 6. Volatility Factor (±5%)
+  // Check if price is stable or volatile using Bollinger Band width
+  const bbWidth = bollingerBands.upper - bollingerBands.lower;
+  const bbWidthPercent = (bbWidth / bollingerBands.middle) * 100;
+  if (bbWidthPercent > 15) {
+    // High volatility reduces confidence
+    confidence -= 5;
+  } else if (bbWidthPercent < 5) {
+    // Low volatility increases confidence
+    confidence += 5;
+  }
+  
+  // Limit confidence to realistic range (20-95%)
+  // Never 0% (always some uncertainty) or 100% (never certain in crypto)
+  confidence = Math.max(20, Math.min(95, Math.round(confidence)));
   
   // Generate detailed signals
   const detailedSignals: string[] = [];

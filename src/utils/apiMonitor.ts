@@ -1,8 +1,10 @@
 // API Usage Monitoring System
-type ApiStats = {
+// Tracks all external API calls across multiple services
+export type ApiStats = {
   totalCalls: number;
   lastReset: number;
   callsByEndpoint: Record<string, number>;
+  hoursSinceReset?: number;
 };
 
 const stats: ApiStats = {
@@ -12,8 +14,14 @@ const stats: ApiStats = {
 };
 
 /**
- * Track API call to CoinGecko
+ * Track API call across all services
  * Monitors daily usage and warns when approaching limits
+ * 
+ * Tracked Services:
+ * - CoinGecko: coins, chart, details (Free: 10,000/month ≈ 330/day)
+ * - CryptoPanic: news-sentiment (Free: 500/day)
+ * - Binance: funding-rate, market-metrics (Free: Unlimited with rate limits)
+ * - Alternative.me: fear-greed (Free: Unlimited)
  */
 export function trackApiCall(endpoint: string): ApiStats {
   const now = Date.now();
@@ -30,21 +38,34 @@ export function trackApiCall(endpoint: string): ApiStats {
   stats.totalCalls++;
   stats.callsByEndpoint[endpoint] = (stats.callsByEndpoint[endpoint] || 0) + 1;
   
-  // Warning thresholds (CoinGecko free tier: 10,000/month ≈ 330/day)
-  if (stats.totalCalls === 200) {
-    console.warn(`⚠️ [API Monitor] 200 calls today - tracking well`);
+  // Separate CryptoPanic tracking (500/day limit)
+  const cryptoPanicCalls = Object.keys(stats.callsByEndpoint)
+    .filter(key => key.startsWith('news-sentiment'))
+    .reduce((sum, key) => sum + stats.callsByEndpoint[key], 0);
+  
+  if (cryptoPanicCalls >= 400) {
+    console.warn(`⚠️ [API Monitor] CryptoPanic: ${cryptoPanicCalls} calls today (limit: 500/day)`);
   }
   
-  if (stats.totalCalls === 300) {
-    console.warn(`⚠️ [API Monitor] 300 calls today - approaching daily target`);
+  // General CoinGecko tracking (10,000/month ≈ 330/day)
+  const coingeckoCalls = ['coins', 'chart', 'details']
+    .reduce((sum, key) => sum + (stats.callsByEndpoint[key] || 0), 0);
+  
+  if (coingeckoCalls >= 200) {
+    console.log(`✅ [API Monitor] CoinGecko: ${coingeckoCalls} calls today (target: ~330/day)`);
   }
   
-  if (stats.totalCalls > 400) {
-    console.error(`🚨 [API Monitor] ${stats.totalCalls} calls today - HIGH USAGE!`);
+  if (coingeckoCalls >= 300) {
+    console.warn(`⚠️ [API Monitor] CoinGecko: ${coingeckoCalls} calls today - approaching daily target`);
   }
   
-  if (stats.totalCalls > 500) {
-    console.error(`🚨🚨 [API Monitor] ${stats.totalCalls} calls today - CRITICAL! May exceed monthly limit!`);
+  if (coingeckoCalls > 400) {
+    console.error(`🚨 [API Monitor] CoinGecko: ${coingeckoCalls} calls today - HIGH USAGE!`);
+  }
+  
+  // Log endpoint breakdown every 50 calls
+  if (stats.totalCalls % 50 === 0) {
+    console.log(`[API Monitor] Total: ${stats.totalCalls} calls. Breakdown:`, stats.callsByEndpoint);
   }
   
   return { ...stats };

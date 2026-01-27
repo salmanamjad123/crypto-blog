@@ -155,8 +155,8 @@ export const Header = ({ initialData }: HeaderProps) => {
           <Link href="/" className="hover:text-cyan-400 transition-colors">Home</Link>
           <Link href="/news" className="hover:text-cyan-400 transition-colors">News</Link>
           <Link href="/blogs" className="hover:text-cyan-400 transition-colors">Blogs</Link>
-          <Link href="/crypto" className="hover:text-cyan-400 transition-colors">Crypto</Link>
-          <Link href="/prediction" className="hover:text-cyan-400 transition-colors">Prediction</Link>
+          <Link href="/crypto" className="hover:text-cyan-400 transition-colors">Crypto + Predictions</Link>
+          {/* <Link href="/prediction" className="hover:text-cyan-400 transition-colors">Prediction</Link> */}
         </div>
         <div className="md:hidden">
           {/* Mobile Menu Button */}

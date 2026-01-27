@@ -17,6 +17,7 @@ interface Post {
   content: ContentBlock[] | string; // Can be an array of blocks or a simple string for older posts
   category: string;
   slug?: string;
+  bannerImage?: string; // Banner image URL
 }
 
 // Function to get a preview of the post content
@@ -36,13 +37,24 @@ const getPostSnippet = (content: ContentBlock[] | string) => {
 };
 
 const PostCard = ({ post }: { post: Post }) => (
-  <div className="bg-gray-800 text-white rounded-lg shadow-md p-6">
-    <h2 className="text-2xl font-bold mb-2">{post.title}</h2>
-    <p className="text-gray-300 mb-4">{getPostSnippet(post.content)}</p>
-    <p className="text-gray-400 text-sm mb-4">Category: {post.category}</p>
-    <Link href={`/${post.category}/${post.slug || post.id}`} className="text-blue-500 hover:underline">
-      Read More
-    </Link>
+  <div className="bg-gray-800 text-white rounded-lg shadow-md overflow-hidden">
+    {post.bannerImage && (
+      <div className="w-full h-48 bg-gray-900 flex items-center justify-center">
+        <img 
+          src={post.bannerImage} 
+          alt={post.title} 
+          className="w-full h-full object-contain"
+        />
+      </div>
+    )}
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-2">{post.title}</h2>
+      <p className="text-gray-300 mb-4">{getPostSnippet(post.content)}</p>
+      <p className="text-gray-400 text-sm mb-4">Category: {post.category}</p>
+      <Link href={`/${post.category}/${post.slug || post.id}`} className="text-blue-500 hover:underline">
+        Read More
+      </Link>
+    </div>
   </div>
 );
 

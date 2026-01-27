@@ -17,6 +17,7 @@ interface Post {
   category: string;
   slug?: string;
   createdAt: any;
+  bannerImage?: string; // Banner image URL
 }
 
 const getPostSnippet = (content: ContentBlock[] | string) => {
@@ -56,12 +57,23 @@ export default function BlogsPage() {
       <h1 className="text-4xl font-bold mb-8">Blogs</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {posts.map(post => (
-          <div key={post.id} className="bg-gray-800 text-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-2">{post.title}</h2>
-            <p className="text-gray-400 mb-4">{getPostSnippet(post.content)}</p>
-            <Link href={`/blogs/${post.slug || post.id}`} className="text-blue-400 hover:underline">
-              Read More
-            </Link>
+          <div key={post.id} className="bg-gray-800 text-white rounded-lg shadow-lg overflow-hidden">
+            {post.bannerImage && (
+              <div className="w-full h-48 bg-gray-900 flex items-center justify-center">
+                <img 
+                  src={post.bannerImage} 
+                  alt={post.title} 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
+            <div className="p-6">
+              <h2 className="text-2xl font-bold mb-2">{post.title}</h2>
+              <p className="text-gray-400 mb-4">{getPostSnippet(post.content)}</p>
+              <Link href={`/blogs/${post.slug || post.id}`} className="text-blue-400 hover:underline">
+                Read More
+              </Link>
+            </div>
           </div>
         ))}
       </div>

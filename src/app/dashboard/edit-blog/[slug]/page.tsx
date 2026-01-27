@@ -22,6 +22,8 @@ let blockId = 0;
 export default function EditBlogPage() {
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [title, setTitle] = useState("");
+  const [bannerImage, setBannerImage] = useState<string>(""); // Banner image (base64 or URL)
+  const [originalBannerImage, setOriginalBannerImage] = useState<string>(""); // Track original banner for cleanup
   const [saving, setSaving] = useState(false); // Track if we're saving
   const [originalImageUrls, setOriginalImageUrls] = useState<string[]>([]); // Track original images for cleanup
   const router = useRouter();
@@ -35,6 +37,8 @@ export default function EditBlogPage() {
         if (docSnap.exists()) {
           const post = docSnap.data();
           setTitle(post.title);
+          setBannerImage(post.bannerImage || '');
+          setOriginalBannerImage(post.bannerImage || '');
           // Ensure each block has a unique ID
           const contentWithUniqueIds = post.content.map((block: ContentBlock) => ({
             ...block,
@@ -83,6 +87,17 @@ export default function EditBlogPage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         updateBlock(id, { src: reader.result as string }); // Store base64 for preview
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBannerImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBannerImage(reader.result as string); // Store base64 for preview
       };
       reader.readAsDataURL(file);
     }
@@ -165,9 +180,36 @@ export default function EditBlogPage() {
         );
       }
 
+      // Upload banner image to Cloudinary if it's new
+      let bannerImageUrl = bannerImage;
+      if (bannerImage.startsWith('data:')) {
+        const blob = await fetch(bannerImage).then(r => r.blob());
+        const formData = new FormData();
+        formData.append('file', blob);
+        const response = await fetch('/api/upload-image', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) {
+          bannerImageUrl = data.url;
+          
+          // Delete old banner image if it exists and is different
+          if (originalBannerImage && originalBannerImage.includes('cloudinary.com') && originalBannerImage !== bannerImageUrl) {
+            try {
+              await fetch('/api/delete-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl: originalBannerImage }),
+              });
+            } catch (error) {
+              console.error('Error deleting old banner image:', error);
+            }
+          }
+        }
+      }
+
       const blogPost = {
         title,
         content: blocksWithCloudinaryUrls,
+        bannerImage: bannerImageUrl,
         updatedAt: new Date(),
       };
 
@@ -199,6 +241,31 @@ export default function EditBlogPage() {
           className="mt-1 block w-full rounded-md border-2 border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
         />
       </div>
+
+      <div className="mb-4 p-4 border-2 border-red-300 rounded-md bg-red-50">
+        <label className="block text-sm font-medium text-red-700 mb-2">
+          Banner Image (Required) *
+        </label>
+        <p className="text-xs text-gray-600 mb-2">This image will appear in blog cards on listing pages</p>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleBannerImageChange}
+          disabled={saving}
+          className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 disabled:opacity-50"
+        />
+        {bannerImage && (
+          <div className="mt-3">
+            <img src={bannerImage} alt="Banner Preview" className="h-32 w-full object-cover rounded" />
+            {bannerImage.startsWith('data:') ? (
+              <p className="text-xs text-yellow-600 mt-1">📷 Will upload to Cloudinary when you update</p>
+            ) : (
+              <p className="text-xs text-green-600 mt-1 break-all">✅ {bannerImage}</p>
+            )}
+          </div>
+        )}
+      </div>
+
       {blocks.map((block, index) => (
         <div key={block.id} className="mb-4 p-4 border rounded-md">
           <div className="flex justify-between items-center mb-2">

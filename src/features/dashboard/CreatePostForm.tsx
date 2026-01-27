@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { addDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/utils/firebase';
 import { useRouter } from 'next/navigation';
+import { PostRenderer } from '@/components/common/PostRenderer';
 
 type ContentBlock = {
   id: number;
@@ -18,6 +19,7 @@ let blockId = 0;
 export const CreatePostForm = () => {
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
   const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false); // Track if we're saving
   const router = useRouter();
 
   const addBlock = () => {
@@ -44,13 +46,15 @@ export const CreatePostForm = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        updateBlock(id, { src: reader.result as string });
+        updateBlock(id, { src: reader.result as string }); // Store base64 for preview
       };
       reader.readAsDataURL(file);
     }
   };
 
   const savePost = async () => {
+    setSaving(true);
+    
     // Generate clean slug from title
     const baseSlug = title
       .toLowerCase()
@@ -86,15 +90,39 @@ export const CreatePostForm = () => {
         );
         
         if (!confirmed) {
+          setSaving(false);
           return; // User cancelled, stay on form
         }
       }
+      
+      // Upload all images to Cloudinary before saving
+      const blocksWithCloudinaryUrls = await Promise.all(
+        blocks.map(async (block) => {
+          if (block.type === 'image' && block.src?.startsWith('data:')) {
+            // This is a base64 image, upload to Cloudinary
+            const blob = await fetch(block.src).then(r => r.blob());
+            const formData = new FormData();
+            formData.append('file', blob);
+
+            const response = await fetch('/api/upload-image', {
+              method: 'POST',
+              body: formData,
+            });
+
+            const data = await response.json();
+            if (data.success) {
+              return { ...block, src: data.url }; // Replace with Cloudinary URL
+            }
+          }
+          return block; // Return unchanged if not a base64 image
+        })
+      );
       
       const blogPost = {
         title,
         slug: finalSlug,
         category: "blogs",
-        content: blocks,
+        content: blocksWithCloudinaryUrls,
         createdAt: new Date(),
       };
 
@@ -104,12 +132,16 @@ export const CreatePostForm = () => {
     } catch (error) {
       console.error('Error saving blog:', error);
       alert('Error saving blog');
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Create a New Blog</h1>
+    <div className="flex gap-6 h-[calc(100vh-8rem)] overflow-hidden">
+      {/* Left Side - Editor */}
+      <div className="w-1/2 overflow-y-auto pr-4">
+        <h1 className="text-2xl font-bold mb-4">Create a New Blog</h1>
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700">
           Blog Post Title
@@ -158,9 +190,19 @@ export const CreatePostForm = () => {
                 type="file"
                 accept="image/*"
                 onChange={(e) => handleFileChange(e, block.id)}
-                className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                disabled={saving}
+                className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-50"
               />
-              {block.src && <img src={block.src} alt="Preview" className="mt-2 h-20" />}
+              {block.src && (
+                <div className="mt-2">
+                  <img src={block.src} alt="Preview" className="h-20 rounded" />
+                  {block.src.startsWith('data:') ? (
+                    <p className="text-xs text-yellow-600 mt-1">📷 Will upload to Cloudinary when you save</p>
+                  ) : (
+                    <p className="text-xs text-green-600 mt-1 break-all">✅ {block.src}</p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <input
@@ -193,10 +235,23 @@ export const CreatePostForm = () => {
       </button>
       <button
         onClick={savePost}
-        className="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+        disabled={saving}
+        className="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
       >
-        Save Blog
+        {saving ? '💾 Saving & Uploading Images...' : 'Save Blog'}
       </button>
+      </div>
+
+      {/* Right Side - Live Preview */}
+      <div className="w-1/2 overflow-y-auto border-l-2 border-gray-300 pl-6">
+        <div className="sticky top-0 bg-gray-900 z-10 pb-4 mb-4 border-b border-gray-700">
+          <h2 className="text-xl font-bold text-cyan-400">👁️ Live Preview</h2>
+          <p className="text-sm text-gray-400">See how your blog will appear to readers</p>
+        </div>
+        <div className="bg-[#0a0a0a] text-[#ededed] rounded-lg shadow-2xl p-8 min-h-[500px]">
+          <PostRenderer title={title} content={blocks} />
+        </div>
+      </div>
     </div>
   );
 };

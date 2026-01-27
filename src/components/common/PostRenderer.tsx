@@ -6,6 +6,9 @@ interface ContentBlock {
   content: string;
   link?: string;
   src?: string;
+  items?: string[];        // For list items (bullet points)
+  images?: string[];       // For image grid (multiple images)
+  linkText?: string;       // For link widget display text
 }
 
 interface PostRendererProps {
@@ -44,6 +47,59 @@ export const PostRenderer: React.FC<PostRendererProps> = ({ title, content }) =>
           >
             {block.content || 'Button'}
           </a>
+        );
+      case 'list':
+        return (
+          <ul className="list-disc list-inside my-4 space-y-2">
+            {block.items && block.items.length > 0 ? (
+              block.items.map((item, idx) => (
+                <li key={idx} className="text-base">
+                  {item}
+                </li>
+              ))
+            ) : (
+              <li className="text-gray-400 italic">Add bullet points...</li>
+            )}
+          </ul>
+        );
+      case 'link':
+        return (
+          <a
+            href={block.link || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline my-2 inline-block"
+          >
+            {block.linkText || 'Click here'} →
+          </a>
+        );
+      case 'image-grid':
+        return (
+          <div className="my-6">
+            {block.images && block.images.length > 0 ? (
+              <div className={`grid gap-4 ${
+                block.images.length === 1 
+                  ? 'grid-cols-1' 
+                  : block.images.length === 2 
+                  ? 'grid-cols-1 md:grid-cols-2' 
+                  : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+              }`}>
+                {block.images.map((imgSrc, idx) => (
+                  <div key={idx} className="rounded-lg overflow-hidden">
+                    <img
+                      src={imgSrc}
+                      alt={`Image ${idx + 1}`}
+                      className="w-full h-auto"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-gray-200 h-48 flex items-center justify-center text-gray-500 rounded">
+                No images in grid
+              </div>
+            )}
+          </div>
         );
       default:
         return null;

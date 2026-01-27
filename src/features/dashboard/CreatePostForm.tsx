@@ -8,10 +8,13 @@ import { PostRenderer } from '@/components/common/PostRenderer';
 
 type ContentBlock = {
   id: number;
-  type: "h1" | "h2" | "h3" | "p" | "textarea" | "button" | "image";
+  type: "h1" | "h2" | "h3" | "p" | "textarea" | "button" | "image" | "list" | "link" | "image-grid";
   content: string;
   link?: string;
   src?: string;
+  items?: string[];        // For list items (bullet points)
+  images?: string[];       // For image grid (multiple images)
+  linkText?: string;       // For link widget display text
 };
 
 let blockId = 0;
@@ -113,6 +116,23 @@ export const CreatePostForm = () => {
             if (data.success) {
               return { ...block, src: data.url }; // Replace with Cloudinary URL
             }
+          } else if (block.type === 'image-grid' && block.images) {
+            // Upload multiple images for image grid
+            const uploadedImages = await Promise.all(
+              block.images.map(async (imgSrc) => {
+                if (imgSrc.startsWith('data:')) {
+                  // This is base64, upload it
+                  const blob = await fetch(imgSrc).then(r => r.blob());
+                  const formData = new FormData();
+                  formData.append('file', blob);
+                  const response = await fetch('/api/upload-image', { method: 'POST', body: formData });
+                  const data = await response.json();
+                  return data.success ? data.url : imgSrc;
+                }
+                return imgSrc; // Already uploaded
+              })
+            );
+            return { ...block, images: uploadedImages };
           }
           return block; // Return unchanged if not a base64 image
         })
@@ -177,6 +197,9 @@ export const CreatePostForm = () => {
             <option value="textarea">Textarea</option>
             <option value="button">Button</option>
             <option value="image">Image</option>
+            <option value="list">📝 Bullet List</option>
+            <option value="link">🔗 Link</option>
+            <option value="image-grid">🖼️ Image Grid</option>
           </select>
           {block.type === "textarea" ? (
             <textarea
@@ -201,6 +224,126 @@ export const CreatePostForm = () => {
                   ) : (
                     <p className="text-xs text-green-600 mt-1 break-all">✅ {block.src}</p>
                   )}
+                </div>
+              )}
+            </div>
+          ) : block.type === "list" ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bullet Points (one per line)
+              </label>
+              <textarea
+                value={block.items?.join('\n') || ''}
+                onChange={(e) => {
+                  const items = e.target.value.split('\n').filter(item => item.trim());
+                  updateBlock(block.id, { items });
+                }}
+                placeholder="First point&#10;Second point&#10;Third point"
+                className="mt-1 block w-full rounded-md border-2 border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 h-32"
+              />
+              <p className="text-xs text-gray-500 mt-1">Each line becomes a bullet point</p>
+            </div>
+          ) : block.type === "link" ? (
+            <div>
+              <div className="mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Link Text (what users see)
+                </label>
+                <input
+                  type="text"
+                  value={block.linkText || ''}
+                  onChange={(e) => updateBlock(block.id, { linkText: e.target.value })}
+                  placeholder="Click here for more info"
+                  className="mt-1 block w-full rounded-md border-2 border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Link URL
+                </label>
+                <input
+                  type="url"
+                  value={block.link || ''}
+                  onChange={(e) => updateBlock(block.id, { link: e.target.value })}
+                  placeholder="https://example.com"
+                  className="mt-1 block w-full rounded-md border-2 border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+                />
+              </div>
+              {block.link && block.linkText && (
+                <a 
+                  href={block.link} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline mt-2 inline-block text-sm"
+                >
+                  Preview: {block.linkText} →
+                </a>
+              )}
+            </div>
+          ) : block.type === "image-grid" ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Multiple Images
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length === 0) return;
+
+                  const promises = files.map(file => {
+                    return new Promise<string>((resolve) => {
+                      const reader = new FileReader();
+                      reader.onloadend = () => resolve(reader.result as string);
+                      reader.readAsDataURL(file);
+                    });
+                  });
+
+                  Promise.all(promises).then(base64Images => {
+                    const existingImages = block.images || [];
+                    updateBlock(block.id, { 
+                      images: [...existingImages, ...base64Images] 
+                    });
+                  });
+                }}
+                disabled={saving}
+                className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-50"
+              />
+              {block.images && block.images.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    {block.images.length} image(s) selected
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {block.images.map((img, idx) => (
+                      <div key={idx} className="relative">
+                        <img 
+                          src={img} 
+                          alt={`Grid ${idx + 1}`} 
+                          className="w-full h-20 object-cover rounded"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newImages = block.images?.filter((_, i) => i !== idx);
+                            updateBlock(block.id, { images: newImages });
+                          }}
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 text-xs hover:bg-red-700"
+                        >
+                          ×
+                        </button>
+                        <div className="text-xs mt-1">
+                          {img.startsWith('data:') ? (
+                            <span className="text-yellow-600">📷 Not uploaded</span>
+                          ) : (
+                            <span className="text-green-600">✅ Uploaded</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
